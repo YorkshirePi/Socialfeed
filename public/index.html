@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Socialfeed</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Socialfeed</div>
+      <div class="meta">
+        <span id="terms"></span>
+        <button id="refresh" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <nav class="filters" id="filters">
+      <button data-platform="all" class="active">All</button>
+      <button data-platform="bluesky">Bluesky</button>
+      <button data-platform="twitter">Twitter / X</button>
+      <button data-platform="linkedin">LinkedIn</button>
+      <button data-platform="instagram">Instagram</button>
+    </nav>
+
+    <section id="status" class="status"></section>
+
+    <main id="feed" class="feed"></main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

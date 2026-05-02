@@ -1,0 +1,180 @@
+:root {
+  --bg: #0e1116;
+  --surface: #161b22;
+  --surface-2: #1f242c;
+  --border: #2a3038;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+  --bluesky: #1185fe;
+  --twitter: #1d9bf0;
+  --linkedin: #0a66c2;
+  --instagram: #e1306c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.45;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 5;
+}
+.brand {
+  font-weight: 700;
+  font-size: 18px;
+}
+.meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+button {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+button:hover {
+  background: #2c333d;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.filters button.active {
+  background: var(--accent);
+  color: #0b0f14;
+  border-color: var(--accent);
+}
+
+.status {
+  padding: 10px 24px;
+  font-size: 12px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.status .src {
+  display: inline-block;
+  margin-right: 14px;
+}
+.status .src.err {
+  color: #ff7b72;
+}
+
+.feed {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 18px 16px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.post {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.post header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.who {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  flex: 1;
+  min-width: 0;
+}
+.who .name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.who .handle {
+  color: var(--muted);
+  font-size: 12px;
+}
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+.badge.bluesky { background: var(--bluesky); }
+.badge.twitter { background: var(--twitter); }
+.badge.linkedin { background: var(--linkedin); }
+.badge.instagram { background: var(--instagram); }
+
+.text {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: 15px;
+}
+.media {
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.post footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+.metrics span { margin-right: 12px; }
+.post a.permalink {
+  color: var(--accent);
+  text-decoration: none;
+}
+.post a.permalink:hover { text-decoration: underline; }
+
+.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 40px 16px;
+}
