@@ -17,6 +17,7 @@
         --linkedin: #0a66c2;
         --x: #1d9bf0;
         --youtube: #ff0033;
+        --instagram: #e1306c;
       }
       * { box-sizing: border-box; }
       body {
@@ -133,6 +134,9 @@
       .badge.linkedin { background: var(--linkedin); }
       .badge.x { background: var(--x); }
       .badge.youtube { background: var(--youtube); }
+      .badge.instagram {
+        background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+      }
 
       .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -216,7 +220,7 @@
       <h1>Vision RT - Mention Monitor</h1>
       <div class="subtitle">
         Live activity from
-        <strong>Facebook</strong>, <strong>LinkedIn</strong>, <strong>X</strong>, and <strong>YouTube</strong>,
+        <strong>Facebook</strong>, <strong>LinkedIn</strong>, <strong>X</strong>, <strong>Instagram</strong>, and <strong>YouTube</strong>,
         plus mention searches for <strong id="search-display">Vision RT</strong>.
       </div>
     </header>
@@ -257,9 +261,11 @@
         <!-- X / Twitter -->
         <section class="panel">
           <header>
-            <h2><span class="badge x">X / Twitter</span> @VisionRTLtd timeline</h2>
+            <h2><span class="badge x">X / Twitter</span> Timelines</h2>
             <div class="actions">
-              <a class="btn" href="https://x.com/VisionRTLtd" target="_blank" rel="noopener">Open profile</a>
+              <button class="btn primary x-tab" data-handle="VisionRTLtd">@VisionRTLtd</button>
+              <button class="btn x-tab" data-handle="SGRTcommunity">@SGRTcommunity</button>
+              <a class="btn" id="x-open-profile" href="https://x.com/VisionRTLtd" target="_blank" rel="noopener">Open profile</a>
               <a class="btn primary" id="x-search" target="_blank" rel="noopener">Search mentions</a>
             </div>
           </header>
@@ -270,27 +276,58 @@
                data-height="600"
                href="https://twitter.com/VisionRTLtd?ref_src=twsrc%5Etfw">Tweets by VisionRTLtd</a>
           </div>
-          <div class="help">Latest tweets from Vision RT's X profile via X's official embedded timeline widget.</div>
+          <div class="help">Live tweets from each X profile via X's official embedded timeline widget. Switch tabs to view the other account.</div>
         </section>
 
         <!-- LinkedIn -->
         <section class="panel">
           <header>
-            <h2><span class="badge linkedin">LinkedIn</span> Vision RT Ltd</h2>
+            <h2><span class="badge linkedin">LinkedIn</span> Pages</h2>
             <div class="actions">
-              <a class="btn" href="https://www.linkedin.com/company/vision-rt-ltd/" target="_blank" rel="noopener">Open page</a>
-              <a class="btn" href="https://www.linkedin.com/company/vision-rt-ltd/posts/?feedView=all" target="_blank" rel="noopener">Latest posts</a>
               <a class="btn primary" id="li-search" target="_blank" rel="noopener">Search mentions</a>
             </div>
           </header>
           <div class="li-block">
-            <h3>LinkedIn doesn't allow embedded post feeds</h3>
-            <p class="help" style="margin:0">
-              Unlike Facebook, X, and YouTube, LinkedIn provides no public widget that
-              shows a company's posts inside another page. Use the buttons above to open
-              the company page or jump straight to a mention search. To pull LinkedIn
-              data programmatically, an account needs Marketing Developer Platform
-              partner approval - it isn't available to general users.
+            <h3 style="margin:0">Vision RT Ltd</h3>
+            <div class="actions">
+              <a class="btn" href="https://www.linkedin.com/company/vision-rt-ltd/" target="_blank" rel="noopener">Open page</a>
+              <a class="btn" href="https://www.linkedin.com/company/vision-rt-ltd/posts/?feedView=all" target="_blank" rel="noopener">Latest posts</a>
+            </div>
+            <h3 style="margin:8px 0 0">The SGRT Community</h3>
+            <div class="actions">
+              <a class="btn" href="https://www.linkedin.com/company/the-sgrt-community/" target="_blank" rel="noopener">Open page</a>
+              <a class="btn" href="https://www.linkedin.com/company/the-sgrt-community/posts/?feedView=all" target="_blank" rel="noopener">Latest posts</a>
+            </div>
+            <p class="help" style="margin:8px 0 0">
+              LinkedIn provides no public widget that shows a company's posts inside
+              another page. Use the buttons above to open each page directly, or
+              jump to a mention search. Programmatic access requires LinkedIn
+              Marketing Developer Platform partner approval.
+            </p>
+          </div>
+        </section>
+
+        <!-- Instagram -->
+        <section class="panel">
+          <header>
+            <h2><span class="badge instagram">Instagram</span> @thesgrtcommunity</h2>
+            <div class="actions">
+              <a class="btn" href="https://www.instagram.com/thesgrtcommunity/" target="_blank" rel="noopener">Open profile</a>
+              <a class="btn primary" id="ig-search" target="_blank" rel="noopener">Search hashtag</a>
+            </div>
+          </header>
+          <div class="li-block">
+            <h3 style="margin:0">The SGRT Community</h3>
+            <div class="actions">
+              <a class="btn" href="https://www.instagram.com/thesgrtcommunity/" target="_blank" rel="noopener">View latest posts</a>
+              <a class="btn" href="https://www.instagram.com/thesgrtcommunity/reels/" target="_blank" rel="noopener">Reels</a>
+              <a class="btn" href="https://www.instagram.com/explore/tags/sgrt/" target="_blank" rel="noopener">#sgrt feed</a>
+            </div>
+            <p class="help" style="margin:8px 0 0">
+              Instagram only allows embedding individual posts, not profile feeds.
+              The buttons above open the profile, reels, and hashtag pages directly.
+              Programmatic access requires an Instagram Graph API token tied to a
+              Business or Creator account that the page itself owns.
             </p>
           </div>
         </section>
@@ -342,6 +379,7 @@
         liSearch: document.getElementById('li-search'),
         xSearch: document.getElementById('x-search'),
         ytSearchLink: document.getElementById('yt-search-link'),
+        igSearch: document.getElementById('ig-search'),
         fbEmbed: document.getElementById('fb-embed'),
         ytSearchFeed: document.getElementById('yt-search-feed'),
         ytSearchStatus: document.getElementById('yt-search-status'),
@@ -380,6 +418,21 @@
         return terms.map((t) => (t.includes(' ') ? '"' + t + '"' : t)).join(' OR ');
       }
 
+      function renderXEmbed(handle) {
+        const xEmbed = document.getElementById('x-embed');
+        xEmbed.innerHTML = '<a class="twitter-timeline" '
+          + 'data-theme="dark" data-chrome="noheader nofooter" data-height="600" '
+          + 'href="https://twitter.com/' + encodeURIComponent(handle) + '?ref_src=twsrc%5Etfw">'
+          + 'Tweets by ' + handle + '</a>';
+        document.getElementById('x-open-profile').href = 'https://x.com/' + handle;
+        document.querySelectorAll('.x-tab').forEach((b) => {
+          b.classList.toggle('primary', b.dataset.handle === handle);
+        });
+        if (window.twttr && window.twttr.widgets) {
+          window.twttr.widgets.load(xEmbed);
+        }
+      }
+
       function renderFacebookEmbed() {
         const w = Math.max(els.fbEmbed.clientWidth || 400, 320);
         const h = 600;
@@ -405,6 +458,9 @@
         els.liSearch.href = 'https://www.linkedin.com/search/results/content/?keywords=' + enc;
         els.xSearch.href = 'https://x.com/search?q=' + enc + '&src=typed_query&f=live';
         els.ytSearchLink.href = 'https://www.youtube.com/results?search_query=' + enc + '&sp=CAI%253D';
+        const firstTag = (terms.find((t) => !t.includes(' ')) || terms[0] || 'sgrt')
+          .replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'sgrt';
+        els.igSearch.href = 'https://www.instagram.com/explore/tags/' + encodeURIComponent(firstTag) + '/';
         localStorage.setItem(TERMS_STORAGE, els.terms.value);
       }
 
@@ -500,9 +556,8 @@
         updateSearchLinks();
         renderFacebookEmbed();
 
-        if (window.twttr && window.twttr.widgets) {
-          window.twttr.widgets.load();
-        }
+        const activeTab = document.querySelector('.x-tab.primary');
+        renderXEmbed(activeTab ? activeTab.dataset.handle : 'VisionRTLtd');
 
         const key = els.ytKey.value.trim();
         if (key) {
@@ -530,6 +585,9 @@
       });
       els.ytKey.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); applyAll(); }
+      });
+      document.querySelectorAll('.x-tab').forEach((btn) => {
+        btn.addEventListener('click', () => renderXEmbed(btn.dataset.handle));
       });
       window.addEventListener('resize', () => {
         clearTimeout(window.__rsz);
