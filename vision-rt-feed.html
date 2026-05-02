@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vision RT - Mention Monitor</title>
+    <style>
+      :root {
+        --bg: #0e1116;
+        --surface: #161b22;
+        --surface-2: #1f242c;
+        --border: #2a3038;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --accent: #58a6ff;
+        --facebook: #1877f2;
+        --linkedin: #0a66c2;
+        --x: #1d9bf0;
+        --youtube: #ff0033;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.45;
+      }
+      header.top {
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--border);
+      }
+      h1 { margin: 0 0 4px; font-size: 20px; }
+      .subtitle { color: var(--muted); font-size: 13px; }
+      main {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 18px 16px 80px;
+      }
+      .terms-bar {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 18px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .terms-bar label {
+        flex: 1;
+        min-width: 240px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      input[type="text"], input[type="password"] {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-family: inherit;
+        width: 100%;
+      }
+      button.btn, a.btn {
+        background: var(--surface-2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 7px 12px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 13px;
+        cursor: pointer;
+        font-family: inherit;
+        display: inline-block;
+      }
+      button.btn:hover, a.btn:hover { background: #2c333d; }
+      button.btn.primary, a.btn.primary {
+        background: var(--accent);
+        color: #0b0f14;
+        border-color: var(--accent);
+        font-weight: 600;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 1000px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+
+      section.panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 600px;
+      }
+      section.panel header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      section.panel h2 {
+        margin: 0;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .badge {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        border-radius: 999px;
+        color: #fff;
+        letter-spacing: 0.04em;
+      }
+      .badge.facebook { background: var(--facebook); }
+      .badge.linkedin { background: var(--linkedin); }
+      .badge.x { background: var(--x); }
+      .badge.youtube { background: var(--youtube); }
+
+      .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+      .embed-frame {
+        flex: 1;
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        min-height: 500px;
+        position: relative;
+      }
+      .embed-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+      .embed-frame.dark { background: var(--surface-2); }
+
+      .help { font-size: 12px; color: var(--muted); }
+      .help a { color: var(--accent); }
+      .err { color: #ff7b72; font-size: 12px; }
+
+      /* YouTube feed */
+      .yt-feed {
+        flex: 1;
+        overflow-y: auto;
+        max-height: 700px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-right: 4px;
+      }
+      .yt-item {
+        display: flex;
+        gap: 10px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px;
+      }
+      .yt-item img {
+        width: 120px;
+        height: 68px;
+        object-fit: cover;
+        border-radius: 6px;
+        background: #000;
+        flex-shrink: 0;
+      }
+      .yt-item .body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+      .yt-item .title {
+        font-weight: 600;
+        font-size: 13px;
+        text-decoration: none;
+        color: var(--text);
+        line-height: 1.3;
+      }
+      .yt-item .title:hover { color: var(--accent); }
+      .yt-item .meta { color: var(--muted); font-size: 11px; }
+      .yt-item .desc {
+        color: var(--muted);
+        font-size: 11px;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+
+      /* LinkedIn placeholder block */
+      .li-block {
+        flex: 1;
+        background: var(--surface-2);
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .li-block h3 { margin: 0; font-size: 15px; }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <h1>Vision RT - Mention Monitor</h1>
+      <div class="subtitle">
+        Live activity from
+        <strong>Facebook</strong>, <strong>LinkedIn</strong>, <strong>X</strong>, and <strong>YouTube</strong>,
+        plus mention searches for <strong id="search-display">Vision RT</strong>.
+      </div>
+    </header>
+
+    <main>
+      <div class="terms-bar">
+        <label>
+          <span>Search terms (comma-separated)</span>
+          <input id="terms" type="text" value="Vision RT, VisionRT, @VisionRTLtd, #VisionRT" />
+        </label>
+        <label>
+          <span>YouTube Data API key (free, stored only in this browser)</span>
+          <input id="yt-key" type="password" placeholder="AIzaSy..." autocomplete="off" />
+        </label>
+        <button class="btn primary" id="apply">Apply / Refresh</button>
+      </div>
+      <div class="help" style="margin-bottom:14px">
+        Get a free YouTube key:
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a>
+        - create a project, enable "YouTube Data API v3", then "Create credentials" -> API key.
+        Without a key, the YouTube panels stay empty but the other three platforms still load.
+      </div>
+
+      <div class="grid">
+        <!-- Facebook -->
+        <section class="panel">
+          <header>
+            <h2><span class="badge facebook">Facebook</span> @visionrtltd page feed</h2>
+            <div class="actions">
+              <a class="btn" href="https://www.facebook.com/visionrtltd" target="_blank" rel="noopener">Open page</a>
+              <a class="btn primary" id="fb-search" target="_blank" rel="noopener">Search mentions</a>
+            </div>
+          </header>
+          <div class="embed-frame" id="fb-embed"></div>
+          <div class="help">Live feed from Vision RT's Facebook page via Facebook's official Page Plugin.</div>
+        </section>
+
+        <!-- X / Twitter -->
+        <section class="panel">
+          <header>
+            <h2><span class="badge x">X / Twitter</span> @VisionRTLtd timeline</h2>
+            <div class="actions">
+              <a class="btn" href="https://x.com/VisionRTLtd" target="_blank" rel="noopener">Open profile</a>
+              <a class="btn primary" id="x-search" target="_blank" rel="noopener">Search mentions</a>
+            </div>
+          </header>
+          <div class="embed-frame dark" id="x-embed">
+            <a class="twitter-timeline"
+               data-theme="dark"
+               data-chrome="noheader nofooter"
+               data-height="600"
+               href="https://twitter.com/VisionRTLtd?ref_src=twsrc%5Etfw">Tweets by VisionRTLtd</a>
+          </div>
+          <div class="help">Latest tweets from Vision RT's X profile via X's official embedded timeline widget.</div>
+        </section>
+
+        <!-- LinkedIn -->
+        <section class="panel">
+          <header>
+            <h2><span class="badge linkedin">LinkedIn</span> Vision RT Ltd</h2>
+            <div class="actions">
+              <a class="btn" href="https://www.linkedin.com/company/vision-rt-ltd/" target="_blank" rel="noopener">Open page</a>
+              <a class="btn" href="https://www.linkedin.com/company/vision-rt-ltd/posts/?feedView=all" target="_blank" rel="noopener">Latest posts</a>
+              <a class="btn primary" id="li-search" target="_blank" rel="noopener">Search mentions</a>
+            </div>
+          </header>
+          <div class="li-block">
+            <h3>LinkedIn doesn't allow embedded post feeds</h3>
+            <p class="help" style="margin:0">
+              Unlike Facebook, X, and YouTube, LinkedIn provides no public widget that
+              shows a company's posts inside another page. Use the buttons above to open
+              the company page or jump straight to a mention search. To pull LinkedIn
+              data programmatically, an account needs Marketing Developer Platform
+              partner approval - it isn't available to general users.
+            </p>
+          </div>
+        </section>
+
+        <!-- YouTube channel uploads -->
+        <section class="panel">
+          <header>
+            <h2><span class="badge youtube">YouTube</span> @visionrtltd uploads</h2>
+            <div class="actions">
+              <a class="btn" href="https://www.youtube.com/@visionrtltd" target="_blank" rel="noopener">Open channel</a>
+              <a class="btn primary" id="yt-search-link" target="_blank" rel="noopener">Search mentions</a>
+            </div>
+          </header>
+          <div class="embed-frame" id="yt-channel-embed">
+            <iframe
+              src="https://www.youtube.com/embed?listType=user_uploads&list=visionrtltd"
+              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen></iframe>
+          </div>
+          <div id="yt-uploads-status" class="help"></div>
+          <div id="yt-uploads-feed" class="yt-feed" hidden></div>
+        </section>
+
+        <!-- YouTube mention search -->
+        <section class="panel" style="grid-column: 1 / -1;">
+          <header>
+            <h2><span class="badge youtube">YouTube</span> Live mention search results</h2>
+            <div class="actions">
+              <span id="yt-search-status" class="help"></span>
+            </div>
+          </header>
+          <div id="yt-search-feed" class="yt-feed">
+            <div class="help">Enter a YouTube API key above and click "Apply / Refresh" to load mentions.</div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- X widgets script -->
+    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+    <script>
+      const els = {
+        terms: document.getElementById('terms'),
+        ytKey: document.getElementById('yt-key'),
+        apply: document.getElementById('apply'),
+        display: document.getElementById('search-display'),
+        fbSearch: document.getElementById('fb-search'),
+        liSearch: document.getElementById('li-search'),
+        xSearch: document.getElementById('x-search'),
+        ytSearchLink: document.getElementById('yt-search-link'),
+        fbEmbed: document.getElementById('fb-embed'),
+        ytSearchFeed: document.getElementById('yt-search-feed'),
+        ytSearchStatus: document.getElementById('yt-search-status'),
+        ytUploadsFeed: document.getElementById('yt-uploads-feed'),
+        ytUploadsStatus: document.getElementById('yt-uploads-status'),
+        ytChannelEmbed: document.getElementById('yt-channel-embed'),
+      };
+
+      const KEY_STORAGE = 'visionrt.youtubeApiKey';
+      const TERMS_STORAGE = 'visionrt.terms';
+
+      const savedKey = localStorage.getItem(KEY_STORAGE);
+      if (savedKey) els.ytKey.value = savedKey;
+      const savedTerms = localStorage.getItem(TERMS_STORAGE);
+      if (savedTerms) els.terms.value = savedTerms;
+
+      function escapeHtml(s) {
+        return (s || '').replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[c]);
+      }
+      function relativeTime(iso) {
+        if (!iso) return '';
+        const diff = (Date.now() - Date.parse(iso)) / 1000;
+        if (Number.isNaN(diff)) return '';
+        if (diff < 60) return Math.floor(diff) + 's ago';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+        if (diff < 86400 * 30) return Math.floor(diff / 86400) + 'd ago';
+        return new Date(iso).toLocaleDateString();
+      }
+      function getTerms() {
+        return els.terms.value.split(',').map((t) => t.trim()).filter(Boolean);
+      }
+      function buildQuery(terms) {
+        return terms.map((t) => (t.includes(' ') ? '"' + t + '"' : t)).join(' OR ');
+      }
+
+      function renderFacebookEmbed() {
+        const w = Math.max(els.fbEmbed.clientWidth || 400, 320);
+        const h = 600;
+        const src = 'https://www.facebook.com/plugins/page.php'
+          + '?href=' + encodeURIComponent('https://www.facebook.com/visionrtltd')
+          + '&tabs=timeline'
+          + '&width=' + Math.min(w, 500)
+          + '&height=' + h
+          + '&small_header=true'
+          + '&adapt_container_width=true'
+          + '&hide_cover=false'
+          + '&show_facepile=false';
+        els.fbEmbed.innerHTML = '<iframe src="' + src + '" '
+          + 'scrolling="no" allow="encrypted-media" allowfullscreen></iframe>';
+      }
+
+      function updateSearchLinks() {
+        const terms = getTerms();
+        const q = buildQuery(terms);
+        const enc = encodeURIComponent(q);
+        els.display.textContent = terms.join(', ');
+        els.fbSearch.href = 'https://www.facebook.com/search/posts/?q=' + enc;
+        els.liSearch.href = 'https://www.linkedin.com/search/results/content/?keywords=' + enc;
+        els.xSearch.href = 'https://x.com/search?q=' + enc + '&src=typed_query&f=live';
+        els.ytSearchLink.href = 'https://www.youtube.com/results?search_query=' + enc + '&sp=CAI%253D';
+        localStorage.setItem(TERMS_STORAGE, els.terms.value);
+      }
+
+      function renderYouTubeItems(container, items) {
+        if (!items.length) {
+          container.innerHTML = '<div class="help">No results.</div>';
+          return;
+        }
+        container.innerHTML = items.map((v) => `
+          <article class="yt-item">
+            <img src="${escapeHtml(v.thumb)}" alt="" loading="lazy" />
+            <div class="body">
+              <a class="title" href="https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}" target="_blank" rel="noopener">${escapeHtml(v.title)}</a>
+              <div class="meta">${escapeHtml(v.channel)} - ${escapeHtml(relativeTime(v.publishedAt))}</div>
+              <div class="desc">${escapeHtml(v.description)}</div>
+            </div>
+          </article>
+        `).join('');
+      }
+
+      function mapYouTubeItems(rawItems) {
+        return (rawItems || [])
+          .map((it) => ({
+            id: it.id?.videoId || it.snippet?.resourceId?.videoId,
+            title: it.snippet?.title || '',
+            channel: it.snippet?.channelTitle || '',
+            description: it.snippet?.description || '',
+            publishedAt: it.snippet?.publishedAt,
+            thumb: it.snippet?.thumbnails?.medium?.url
+              || it.snippet?.thumbnails?.default?.url
+              || '',
+          }))
+          .filter((v) => v.id)
+          .sort((a, b) => Date.parse(b.publishedAt || 0) - Date.parse(a.publishedAt || 0));
+      }
+
+      async function fetchYouTubeSearch(key, terms) {
+        els.ytSearchStatus.textContent = 'Loading...';
+        const url = new URL('https://www.googleapis.com/youtube/v3/search');
+        url.searchParams.set('part', 'snippet');
+        url.searchParams.set('q', buildQuery(terms));
+        url.searchParams.set('type', 'video');
+        url.searchParams.set('order', 'date');
+        url.searchParams.set('maxResults', '25');
+        url.searchParams.set('key', key);
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error?.message || ('HTTP ' + res.status));
+        const items = mapYouTubeItems(data.items);
+        els.ytSearchStatus.textContent = items.length + ' result(s), newest first.';
+        renderYouTubeItems(els.ytSearchFeed, items);
+      }
+
+      async function fetchYouTubeChannelUploads(key) {
+        els.ytUploadsStatus.textContent = 'Loading channel uploads...';
+        const lookup = new URL('https://www.googleapis.com/youtube/v3/channels');
+        lookup.searchParams.set('part', 'contentDetails,snippet');
+        lookup.searchParams.set('forHandle', '@visionrtltd');
+        lookup.searchParams.set('key', key);
+        let res = await fetch(lookup);
+        let data = await res.json();
+        if (!res.ok) throw new Error(data?.error?.message || ('HTTP ' + res.status));
+        const channel = data.items?.[0];
+        if (!channel) {
+          els.ytUploadsStatus.textContent = 'Channel not found.';
+          return;
+        }
+        const uploadsId = channel.contentDetails?.relatedPlaylists?.uploads;
+        if (!uploadsId) {
+          els.ytUploadsStatus.textContent = 'Uploads playlist unavailable.';
+          return;
+        }
+        const list = new URL('https://www.googleapis.com/youtube/v3/playlistItems');
+        list.searchParams.set('part', 'snippet');
+        list.searchParams.set('playlistId', uploadsId);
+        list.searchParams.set('maxResults', '15');
+        list.searchParams.set('key', key);
+        res = await fetch(list);
+        data = await res.json();
+        if (!res.ok) throw new Error(data?.error?.message || ('HTTP ' + res.status));
+        const items = mapYouTubeItems(data.items);
+        if (items.length) {
+          els.ytUploadsStatus.textContent = items.length + ' recent upload(s).';
+          els.ytChannelEmbed.hidden = true;
+          els.ytUploadsFeed.hidden = false;
+          renderYouTubeItems(els.ytUploadsFeed, items);
+        } else {
+          els.ytUploadsStatus.textContent = 'No uploads via API; showing channel embed instead.';
+        }
+      }
+
+      async function applyAll() {
+        updateSearchLinks();
+        renderFacebookEmbed();
+
+        if (window.twttr && window.twttr.widgets) {
+          window.twttr.widgets.load();
+        }
+
+        const key = els.ytKey.value.trim();
+        if (key) {
+          localStorage.setItem(KEY_STORAGE, key);
+          const terms = getTerms();
+          try {
+            await fetchYouTubeSearch(key, terms);
+          } catch (err) {
+            els.ytSearchStatus.innerHTML = '<span class="err">' + escapeHtml(err.message) + '</span>';
+          }
+          try {
+            await fetchYouTubeChannelUploads(key);
+          } catch (err) {
+            els.ytUploadsStatus.innerHTML = '<span class="err">' + escapeHtml(err.message) + '</span>';
+          }
+        } else {
+          els.ytSearchStatus.innerHTML = '<span class="help">No API key - mention search disabled.</span>';
+          els.ytUploadsStatus.innerHTML = '<span class="help">No API key - showing public channel embed.</span>';
+        }
+      }
+
+      els.apply.addEventListener('click', applyAll);
+      els.terms.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); applyAll(); }
+      });
+      els.ytKey.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); applyAll(); }
+      });
+      window.addEventListener('resize', () => {
+        clearTimeout(window.__rsz);
+        window.__rsz = setTimeout(renderFacebookEmbed, 200);
+      });
+
+      applyAll();
+    </script>
+  </body>
+</html>
