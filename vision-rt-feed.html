@@ -200,6 +200,94 @@
         -webkit-box-orient: vertical;
       }
 
+      /* Unified feed (RSS-driven) */
+      .feed {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 700px;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      .feed-item {
+        display: flex;
+        gap: 12px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+      }
+      .feed-item.facebook { border-left-color: var(--facebook); }
+      .feed-item.linkedin { border-left-color: var(--linkedin); }
+      .feed-item.x { border-left-color: var(--x); }
+      .feed-item.youtube { border-left-color: var(--youtube); }
+      .feed-item.instagram { border-left-color: var(--instagram); }
+      .feed-item .col { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+      .feed-item .row1 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .feed-item a.title {
+        font-weight: 600;
+        font-size: 14px;
+        text-decoration: none;
+        color: var(--text);
+        line-height: 1.3;
+        display: block;
+      }
+      .feed-item a.title:hover { color: var(--accent); }
+      .feed-item .source { font-size: 11px; color: var(--muted); }
+      .feed-item .desc {
+        color: var(--muted);
+        font-size: 13px;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+      }
+      .feed-item img.thumb {
+        width: 110px;
+        height: 110px;
+        object-fit: cover;
+        border-radius: 6px;
+        flex-shrink: 0;
+        background: var(--surface);
+      }
+      .src-status {
+        display: inline-block;
+        margin-right: 12px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: var(--surface-2);
+        font-size: 11px;
+      }
+      .src-status.err { color: #ff7b72; }
+      .src-status.ok { color: #56d364; }
+
+      .config-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .config-row label {
+        font-size: 12px;
+        color: var(--muted);
+        min-width: 200px;
+      }
+      .config-row input {
+        flex: 1;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 6px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-family: inherit;
+      }
+
       /* LinkedIn placeholder block */
       .li-block {
         flex: 1;
@@ -243,6 +331,40 @@
         - create a project, enable "YouTube Data API v3", then "Create credentials" -> API key.
         Without a key, the YouTube panels stay empty but the other three platforms still load.
       </div>
+
+      <!-- Unified feed (all platforms in one list) -->
+      <section class="panel" style="margin-bottom:18px">
+        <header>
+          <h2>Unified feed <span class="subtitle">- all platforms, newest first</span></h2>
+          <div class="actions">
+            <button class="btn primary" id="unified-refresh">Refresh</button>
+            <button class="btn" id="unified-config-btn">Sources</button>
+          </div>
+        </header>
+        <div class="help">
+          Pulled via the free public
+          <a href="https://docs.rsshub.app/" target="_blank" rel="noopener">RSSHub</a>
+          service through an <a href="https://allorigins.win/" target="_blank" rel="noopener">allorigins</a> CORS proxy.
+          Facebook, LinkedIn, and YouTube are usually reliable; X and Instagram on the public RSSHub
+          instance are often rate-limited - per-source status is shown below.
+        </div>
+        <div id="unified-config" class="li-block" hidden>
+          <h3 style="margin:0">Edit RSS source URLs</h3>
+          <div id="unified-config-list" style="display:flex; flex-direction:column; gap:8px; width:100%"></div>
+          <div class="actions">
+            <button class="btn primary" id="unified-config-save">Save & refresh</button>
+            <button class="btn" id="unified-config-reset">Reset to defaults</button>
+          </div>
+          <p class="help" style="margin:0">
+            Swap any URL for your own RSSHub instance (e.g. <code>https://your-host/...</code>)
+            or any other RSS feed. Leave blank to disable a source.
+          </p>
+        </div>
+        <div id="unified-status" class="help"></div>
+        <div id="unified-feed" class="feed"></div>
+      </section>
+
+      <h2 style="margin: 18px 0 10px; font-size: 15px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Raw views per platform</h2>
 
       <div class="grid">
         <!-- Facebook -->
@@ -552,6 +674,198 @@
         }
       }
 
+      // --------------- Unified RSS feed ---------------
+      const SOURCES_STORAGE = 'visionrt.sources';
+      const DEFAULT_SOURCES = [
+        { id: 'fb-visionrt', label: 'Facebook - Vision RT', platform: 'facebook',
+          url: 'https://rsshub.app/facebook/page/visionrtltd' },
+        { id: 'li-visionrt', label: 'LinkedIn - Vision RT Ltd', platform: 'linkedin',
+          url: 'https://rsshub.app/linkedin/company/vision-rt-ltd' },
+        { id: 'li-sgrt', label: 'LinkedIn - The SGRT Community', platform: 'linkedin',
+          url: 'https://rsshub.app/linkedin/company/the-sgrt-community' },
+        { id: 'x-visionrt', label: 'X - @VisionRTLtd', platform: 'x',
+          url: 'https://rsshub.app/twitter/user/VisionRTLtd' },
+        { id: 'x-sgrt', label: 'X - @SGRTcommunity', platform: 'x',
+          url: 'https://rsshub.app/twitter/user/SGRTcommunity' },
+        { id: 'ig-sgrt', label: 'Instagram - @thesgrtcommunity', platform: 'instagram',
+          url: 'https://rsshub.app/instagram/user/thesgrtcommunity' },
+        { id: 'yt-visionrt', label: 'YouTube - @visionrtltd', platform: 'youtube',
+          url: 'https://rsshub.app/youtube/user/@visionrtltd' },
+      ];
+
+      function loadSources() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(SOURCES_STORAGE) || '[]');
+          if (Array.isArray(saved) && saved.length) {
+            const byId = new Map(DEFAULT_SOURCES.map((s) => [s.id, s]));
+            return saved
+              .filter((s) => byId.has(s.id))
+              .map((s) => ({ ...byId.get(s.id), url: s.url }));
+          }
+        } catch (e) {}
+        return DEFAULT_SOURCES.map((s) => ({ ...s }));
+      }
+      let sources = loadSources();
+
+      async function fetchViaProxy(url) {
+        const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+        const res = await fetch(proxied, { headers: { accept: 'application/rss+xml, application/xml, text/xml, */*' } });
+        if (!res.ok) throw new Error('proxy HTTP ' + res.status);
+        const text = await res.text();
+        if (!text || text.length < 30) throw new Error('empty response');
+        return text;
+      }
+
+      function stripHtml(html) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html || '';
+        return tmp.textContent || '';
+      }
+      function firstImage(html) {
+        const m = (html || '').match(/<img[^>]+src=["']([^"']+)["']/i);
+        return m ? m[1] : null;
+      }
+
+      function parseFeed(xmlText) {
+        const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+        if (doc.querySelector('parsererror')) throw new Error('invalid XML');
+        const items = [];
+        doc.querySelectorAll('item').forEach((el) => {
+          const descHtml = el.querySelector('description')?.textContent || '';
+          const enclosure = el.querySelector('enclosure')?.getAttribute('url');
+          items.push({
+            title: (el.querySelector('title')?.textContent || '').trim(),
+            link: (el.querySelector('link')?.textContent || '').trim(),
+            descriptionHtml: descHtml,
+            descriptionText: stripHtml(descHtml).trim(),
+            image: enclosure || firstImage(descHtml),
+            pubDate: el.querySelector('pubDate')?.textContent || '',
+          });
+        });
+        doc.querySelectorAll('entry').forEach((el) => {
+          const linkEl = el.querySelector('link');
+          const contentEl = el.querySelector('content') || el.querySelector('summary');
+          const descHtml = contentEl?.textContent || '';
+          items.push({
+            title: (el.querySelector('title')?.textContent || '').trim(),
+            link: linkEl?.getAttribute('href') || linkEl?.textContent || '',
+            descriptionHtml: descHtml,
+            descriptionText: stripHtml(descHtml).trim(),
+            image: firstImage(descHtml),
+            pubDate: el.querySelector('updated')?.textContent
+                  || el.querySelector('published')?.textContent || '',
+          });
+        });
+        return items;
+      }
+
+      function renderUnifiedFeed(allItems) {
+        const feedEl = document.getElementById('unified-feed');
+        if (!allItems.length) {
+          feedEl.innerHTML = '<div class="help">No items loaded yet.</div>';
+          return;
+        }
+        feedEl.innerHTML = allItems.map((item) => `
+          <article class="feed-item ${item.platform}">
+            ${item.image ? `<img class="thumb" src="${escapeHtml(item.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />` : ''}
+            <div class="col">
+              <div class="row1">
+                <span class="badge ${item.platform}">${item.platform}</span>
+                <span class="source">${escapeHtml(item.sourceLabel)}</span>
+                <span class="source">- ${escapeHtml(relativeTime(item.pubDate))}</span>
+              </div>
+              <a class="title" href="${escapeHtml(item.link)}" target="_blank" rel="noopener">${escapeHtml(item.title || '(no title)')}</a>
+              <div class="desc">${escapeHtml(item.descriptionText.slice(0, 400))}</div>
+            </div>
+          </article>
+        `).join('');
+      }
+
+      function renderSourceStatus(results) {
+        const status = document.getElementById('unified-status');
+        status.innerHTML = results.map((r) => {
+          const cls = r.error ? 'err' : 'ok';
+          const detail = r.error ? r.error : (r.count + ' item' + (r.count === 1 ? '' : 's'));
+          return `<span class="src-status ${cls}" title="${escapeHtml(r.url)}">${escapeHtml(r.label)}: ${escapeHtml(detail)}</span>`;
+        }).join('');
+      }
+
+      async function refreshUnifiedFeed() {
+        const refreshBtn = document.getElementById('unified-refresh');
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Loading...';
+        const status = document.getElementById('unified-status');
+        status.innerHTML = '<span class="help">Fetching ' + sources.filter((s) => s.url).length + ' sources via proxy - this can take ~10-20s...</span>';
+
+        const active = sources.filter((s) => s.url && s.url.trim());
+        const settled = await Promise.allSettled(active.map((s) => fetchViaProxy(s.url)));
+
+        const results = [];
+        const allItems = [];
+        settled.forEach((r, i) => {
+          const src = active[i];
+          if (r.status === 'fulfilled') {
+            try {
+              const items = parseFeed(r.value).map((it) => ({
+                ...it,
+                platform: src.platform,
+                sourceLabel: src.label,
+              }));
+              results.push({ label: src.label, url: src.url, count: items.length, error: null });
+              allItems.push(...items);
+            } catch (e) {
+              results.push({ label: src.label, url: src.url, count: 0, error: e.message });
+            }
+          } else {
+            results.push({ label: src.label, url: src.url, count: 0,
+              error: r.reason?.message || String(r.reason) });
+          }
+        });
+
+        allItems.sort((a, b) => {
+          const at = a.pubDate ? Date.parse(a.pubDate) : 0;
+          const bt = b.pubDate ? Date.parse(b.pubDate) : 0;
+          return (bt || 0) - (at || 0);
+        });
+
+        renderSourceStatus(results);
+        renderUnifiedFeed(allItems);
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = 'Refresh';
+      }
+
+      function renderSourceConfig() {
+        const list = document.getElementById('unified-config-list');
+        list.innerHTML = sources.map((s, i) => `
+          <div class="config-row">
+            <label>${escapeHtml(s.label)}</label>
+            <input data-i="${i}" type="text" value="${escapeHtml(s.url)}" />
+          </div>
+        `).join('');
+      }
+
+      document.getElementById('unified-refresh').addEventListener('click', refreshUnifiedFeed);
+      document.getElementById('unified-config-btn').addEventListener('click', () => {
+        const cfg = document.getElementById('unified-config');
+        cfg.hidden = !cfg.hidden;
+        if (!cfg.hidden) renderSourceConfig();
+      });
+      document.getElementById('unified-config-save').addEventListener('click', () => {
+        document.querySelectorAll('#unified-config-list input').forEach((inp) => {
+          const i = Number(inp.dataset.i);
+          if (sources[i]) sources[i].url = inp.value.trim();
+        });
+        localStorage.setItem(SOURCES_STORAGE, JSON.stringify(
+          sources.map((s) => ({ id: s.id, url: s.url }))));
+        document.getElementById('unified-config').hidden = true;
+        refreshUnifiedFeed();
+      });
+      document.getElementById('unified-config-reset').addEventListener('click', () => {
+        localStorage.removeItem(SOURCES_STORAGE);
+        sources = loadSources();
+        renderSourceConfig();
+      });
+
       async function applyAll() {
         updateSearchLinks();
         renderFacebookEmbed();
@@ -595,6 +909,7 @@
       });
 
       applyAll();
+      refreshUnifiedFeed();
     </script>
   </body>
 </html>
