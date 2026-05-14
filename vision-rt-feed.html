@@ -707,13 +707,71 @@
       }
       let sources = loadSources();
 
+      const PROXIES = [
+        (u) => 'https://corsproxy.io/?' + encodeURIComponent(u),
+        (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+        (u) => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+      ];
+
       async function fetchViaProxy(url) {
-        const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-        const res = await fetch(proxied, { headers: { accept: 'application/rss+xml, application/xml, text/xml, */*' } });
-        if (!res.ok) throw new Error('proxy HTTP ' + res.status);
-        const text = await res.text();
-        if (!text || text.length < 30) throw new Error('empty response');
-        return text;
+        let lastErr = null;
+        for (let i = 0; i < PROXIES.length; i++) {
+          const proxied = PROXIES[i](url);
+          try {
+            const res = await fetch(proxied, {
+              headers: { accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' },
+            });
+            if (!res.ok) { lastErr = new Error('proxy ' + (i + 1) + ' HTTP ' + res.status); continue; }
+            const text = await res.text();
+            if (!text || text.length < 30) { lastErr = new Error('proxy ' + (i + 1) + ' empty response'); continue; }
+            // Reject HTML error pages (a common RSSHub failure mode)
+            const head = text.slice(0, 800).toLowerCase();
+            if (!/<rss|<feed|<\?xml/.test(head)) {
+              const looksRateLimited = /rate.?limit|too many requests|blocked|forbidden|error 5\d\d|error 4\d\d/.test(head);
+              lastErr = new Error('proxy ' + (i + 1) + (looksRateLimited ? ' rate-limited' : ' non-XML response'));
+              continue;
+            }
+            return text;
+          } catch (e) {
+            lastErr = new Error('proxy ' + (i + 1) + ' ' + (e.message || 'failed'));
+          }
+        }
+        throw lastErr || new Error('all proxies failed');
+      }
+
+      async function fetchYouTubeAsFeedItems(handle) {
+        const key = (els.ytKey.value || '').trim();
+        if (!key) throw new Error('needs YouTube API key (set above)');
+        const lookup = new URL('https://www.googleapis.com/youtube/v3/channels');
+        lookup.searchParams.set('part', 'contentDetails');
+        lookup.searchParams.set('forHandle', handle.replace(/^@/, ''));
+        lookup.searchParams.set('key', key);
+        let res = await fetch(lookup);
+        let data = await res.json();
+        if (!res.ok) throw new Error(data?.error?.message || ('HTTP ' + res.status));
+        const uploadsId = data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+        if (!uploadsId) throw new Error('channel not found');
+        const list = new URL('https://www.googleapis.com/youtube/v3/playlistItems');
+        list.searchParams.set('part', 'snippet');
+        list.searchParams.set('playlistId', uploadsId);
+        list.searchParams.set('maxResults', '20');
+        list.searchParams.set('key', key);
+        res = await fetch(list);
+        data = await res.json();
+        if (!res.ok) throw new Error(data?.error?.message || ('HTTP ' + res.status));
+        return (data.items || []).map((it) => {
+          const vid = it.snippet?.resourceId?.videoId;
+          return {
+            title: it.snippet?.title || '',
+            link: vid ? 'https://www.youtube.com/watch?v=' + vid : '',
+            descriptionHtml: '',
+            descriptionText: it.snippet?.description || '',
+            image: it.snippet?.thumbnails?.medium?.url
+                || it.snippet?.thumbnails?.default?.url
+                || null,
+            pubDate: it.snippet?.publishedAt || '',
+          };
+        });
       }
 
       function stripHtml(html) {
@@ -783,11 +841,21 @@
 
       function renderSourceStatus(results) {
         const status = document.getElementById('unified-status');
-        status.innerHTML = results.map((r) => {
+        const okCount = results.filter((r) => !r.error).length;
+        const ytFailed = results.some((r) => r.error && /youtube|api key/i.test(r.label + ' ' + r.error));
+        const tips = [];
+        if (ytFailed && !(els.ytKey.value || '').trim()) {
+          tips.push('YouTube needs a free API key in the box above (most reliable source).');
+        }
+        if (okCount < results.length) {
+          tips.push('X and Instagram on the public RSSHub instance are often blocked - the "Raw views per platform" panels below still show their content directly.');
+        }
+        const pills = results.map((r) => {
           const cls = r.error ? 'err' : 'ok';
           const detail = r.error ? r.error : (r.count + ' item' + (r.count === 1 ? '' : 's'));
           return `<span class="src-status ${cls}" title="${escapeHtml(r.url)}">${escapeHtml(r.label)}: ${escapeHtml(detail)}</span>`;
         }).join('');
+        status.innerHTML = pills + (tips.length ? '<div style="margin-top:6px">' + tips.map((t) => '<span class="help">- ' + escapeHtml(t) + '</span>').join('<br>') + '</div>' : '');
       }
 
       async function refreshUnifiedFeed() {
@@ -798,7 +866,17 @@
         status.innerHTML = '<span class="help">Fetching ' + sources.filter((s) => s.url).length + ' sources via proxy - this can take ~10-20s...</span>';
 
         const active = sources.filter((s) => s.url && s.url.trim());
-        const settled = await Promise.allSettled(active.map((s) => fetchViaProxy(s.url)));
+
+        const settled = await Promise.allSettled(active.map(async (src) => {
+          if (src.platform === 'youtube') {
+            const handleMatch = src.url.match(/@([A-Za-z0-9_.-]+)/)
+                              || src.url.match(/youtube\/user\/([A-Za-z0-9_.-]+)/i);
+            const handle = handleMatch ? handleMatch[1] : 'visionrtltd';
+            return { kind: 'items', items: await fetchYouTubeAsFeedItems(handle) };
+          }
+          const xml = await fetchViaProxy(src.url);
+          return { kind: 'xml', xml };
+        }));
 
         const results = [];
         const allItems = [];
@@ -806,7 +884,8 @@
           const src = active[i];
           if (r.status === 'fulfilled') {
             try {
-              const items = parseFeed(r.value).map((it) => ({
+              const parsed = r.value.kind === 'items' ? r.value.items : parseFeed(r.value.xml);
+              const items = parsed.map((it) => ({
                 ...it,
                 platform: src.platform,
                 sourceLabel: src.label,
@@ -893,12 +972,16 @@
         }
       }
 
-      els.apply.addEventListener('click', applyAll);
+      function applyAndRefresh() {
+        applyAll();
+        refreshUnifiedFeed();
+      }
+      els.apply.addEventListener('click', applyAndRefresh);
       els.terms.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); applyAll(); }
+        if (e.key === 'Enter') { e.preventDefault(); applyAndRefresh(); }
       });
       els.ytKey.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); applyAll(); }
+        if (e.key === 'Enter') { e.preventDefault(); applyAndRefresh(); }
       });
       document.querySelectorAll('.x-tab').forEach((btn) => {
         btn.addEventListener('click', () => renderXEmbed(btn.dataset.handle));
