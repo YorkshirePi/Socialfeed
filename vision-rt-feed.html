@@ -200,6 +200,111 @@
         -webkit-box-orient: vertical;
       }
 
+      /* Per-source feed grid */
+      .source-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 14px;
+        margin-top: 10px;
+      }
+      .source-box {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-top: 4px solid var(--border);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        max-height: 520px;
+        overflow: hidden;
+      }
+      .source-box.facebook { border-top-color: var(--facebook); }
+      .source-box.linkedin { border-top-color: var(--linkedin); }
+      .source-box.x { border-top-color: var(--x); }
+      .source-box.youtube { border-top-color: var(--youtube); }
+      .source-box.instagram { border-top-color: var(--instagram); }
+      .source-box > header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+      .source-box .src-title {
+        font-weight: 600;
+        font-size: 13px;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .source-box .src-count {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .source-box .src-error {
+        padding: 14px 12px;
+        font-size: 12px;
+        color: #ff7b72;
+      }
+      .source-box .src-loading {
+        padding: 14px 12px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .source-box .src-items {
+        overflow-y: auto;
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .source-box .src-items article {
+        display: flex;
+        gap: 10px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px;
+      }
+      .source-box .src-items img {
+        width: 70px;
+        height: 70px;
+        object-fit: cover;
+        border-radius: 4px;
+        background: var(--surface-2);
+        flex-shrink: 0;
+      }
+      .source-box .src-items .body {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+        flex: 1;
+      }
+      .source-box .src-items a.title {
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--text);
+        text-decoration: none;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .source-box .src-items a.title:hover { color: var(--accent); }
+      .source-box .src-items .meta { color: var(--muted); font-size: 11px; }
+      .source-box .src-items .desc {
+        color: var(--muted);
+        font-size: 12px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
       /* Unified feed (RSS-driven) */
       .feed {
         display: flex;
@@ -332,21 +437,23 @@
         Without a key, the YouTube panels stay empty but the other three platforms still load.
       </div>
 
-      <!-- Unified feed (all platforms in one list) -->
+      <!-- Per-source feeds (one box per page/account) -->
       <section class="panel" style="margin-bottom:18px">
         <header>
-          <h2>Unified feed <span class="subtitle">- all platforms, newest first</span></h2>
+          <h2>Feeds <span class="subtitle">- one box per page/account, newest first</span></h2>
           <div class="actions">
-            <button class="btn primary" id="unified-refresh">Refresh</button>
+            <button class="btn primary" id="unified-refresh">Refresh all</button>
             <button class="btn" id="unified-config-btn">Sources</button>
           </div>
         </header>
         <div class="help">
           Pulled via the free public
           <a href="https://docs.rsshub.app/" target="_blank" rel="noopener">RSSHub</a>
-          service through an <a href="https://allorigins.win/" target="_blank" rel="noopener">allorigins</a> CORS proxy.
-          Facebook, LinkedIn, and YouTube are usually reliable; X and Instagram on the public RSSHub
-          instance are often rate-limited - per-source status is shown below.
+          service through a CORS proxy chain. YouTube uses the YouTube Data API
+          directly when a key is set above (most reliable). Facebook and LinkedIn
+          are usually fine; X and Instagram are often rate-limited on the public
+          RSSHub instance and may show errors - the "Raw views per platform"
+          panels lower down still show those directly.
         </div>
         <div id="unified-config" class="li-block" hidden>
           <h3 style="margin:0">Edit RSS source URLs</h3>
@@ -360,8 +467,7 @@
             or any other RSS feed. Leave blank to disable a source.
           </p>
         </div>
-        <div id="unified-status" class="help"></div>
-        <div id="unified-feed" class="feed"></div>
+        <div id="source-boxes" class="source-grid"></div>
       </section>
 
       <h2 style="margin: 18px 0 10px; font-size: 15px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Raw views per platform</h2>
@@ -817,100 +923,79 @@
         return items;
       }
 
-      function renderUnifiedFeed(allItems) {
-        const feedEl = document.getElementById('unified-feed');
-        if (!allItems.length) {
-          feedEl.innerHTML = '<div class="help">No items loaded yet.</div>';
-          return;
-        }
-        feedEl.innerHTML = allItems.map((item) => `
-          <article class="feed-item ${item.platform}">
-            ${item.image ? `<img class="thumb" src="${escapeHtml(item.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />` : ''}
-            <div class="col">
-              <div class="row1">
-                <span class="badge ${item.platform}">${item.platform}</span>
-                <span class="source">${escapeHtml(item.sourceLabel)}</span>
-                <span class="source">- ${escapeHtml(relativeTime(item.pubDate))}</span>
-              </div>
+      function boxItemHtml(item) {
+        return `
+          <article>
+            ${item.image ? `<img src="${escapeHtml(item.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />` : ''}
+            <div class="body">
               <a class="title" href="${escapeHtml(item.link)}" target="_blank" rel="noopener">${escapeHtml(item.title || '(no title)')}</a>
-              <div class="desc">${escapeHtml(item.descriptionText.slice(0, 400))}</div>
+              <div class="meta">${escapeHtml(relativeTime(item.pubDate))}</div>
+              <div class="desc">${escapeHtml(item.descriptionText.slice(0, 240))}</div>
             </div>
           </article>
+        `;
+      }
+
+      function renderSourceSkeletons() {
+        const grid = document.getElementById('source-boxes');
+        const active = sources.filter((s) => s.url && s.url.trim());
+        grid.innerHTML = active.map((s) => `
+          <div class="source-box ${s.platform}" data-id="${escapeHtml(s.id)}">
+            <header>
+              <span class="badge ${s.platform}">${s.platform}</span>
+              <span class="src-title" title="${escapeHtml(s.label)}">${escapeHtml(s.label)}</span>
+              <span class="src-count">loading...</span>
+            </header>
+            <div class="src-loading">Fetching...</div>
+          </div>
         `).join('');
       }
 
-      function renderSourceStatus(results) {
-        const status = document.getElementById('unified-status');
-        const okCount = results.filter((r) => !r.error).length;
-        const ytFailed = results.some((r) => r.error && /youtube|api key/i.test(r.label + ' ' + r.error));
-        const tips = [];
-        if (ytFailed && !(els.ytKey.value || '').trim()) {
-          tips.push('YouTube needs a free API key in the box above (most reliable source).');
+      function renderSourceBox(src, items, error) {
+        const box = document.querySelector('.source-box[data-id="' + CSS.escape(src.id) + '"]');
+        if (!box) return;
+        const count = box.querySelector('.src-count');
+        if (error) {
+          count.textContent = 'error';
+          box.innerHTML = box.querySelector('header').outerHTML
+            + '<div class="src-error">' + escapeHtml(error) + '</div>';
+          return;
         }
-        if (okCount < results.length) {
-          tips.push('X and Instagram on the public RSSHub instance are often blocked - the "Raw views per platform" panels below still show their content directly.');
+        items.sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0));
+        count.textContent = items.length + (items.length === 1 ? ' item' : ' items');
+        box.innerHTML = box.querySelector('header').outerHTML
+          + (items.length
+              ? '<div class="src-items">' + items.map(boxItemHtml).join('') + '</div>'
+              : '<div class="src-loading">No items returned.</div>');
+      }
+
+      async function refreshOneSource(src) {
+        try {
+          let items;
+          if (src.platform === 'youtube') {
+            const handleMatch = src.url.match(/@([A-Za-z0-9_.-]+)/)
+                              || src.url.match(/youtube\/user\/([A-Za-z0-9_.-]+)/i);
+            const handle = handleMatch ? handleMatch[1] : 'visionrtltd';
+            items = await fetchYouTubeAsFeedItems(handle);
+          } else {
+            const xml = await fetchViaProxy(src.url);
+            items = parseFeed(xml);
+          }
+          renderSourceBox(src, items, null);
+        } catch (e) {
+          renderSourceBox(src, [], e.message || String(e));
         }
-        const pills = results.map((r) => {
-          const cls = r.error ? 'err' : 'ok';
-          const detail = r.error ? r.error : (r.count + ' item' + (r.count === 1 ? '' : 's'));
-          return `<span class="src-status ${cls}" title="${escapeHtml(r.url)}">${escapeHtml(r.label)}: ${escapeHtml(detail)}</span>`;
-        }).join('');
-        status.innerHTML = pills + (tips.length ? '<div style="margin-top:6px">' + tips.map((t) => '<span class="help">- ' + escapeHtml(t) + '</span>').join('<br>') + '</div>' : '');
       }
 
       async function refreshUnifiedFeed() {
         const refreshBtn = document.getElementById('unified-refresh');
         refreshBtn.disabled = true;
         refreshBtn.textContent = 'Loading...';
-        const status = document.getElementById('unified-status');
-        status.innerHTML = '<span class="help">Fetching ' + sources.filter((s) => s.url).length + ' sources via proxy - this can take ~10-20s...</span>';
-
         const active = sources.filter((s) => s.url && s.url.trim());
-
-        const settled = await Promise.allSettled(active.map(async (src) => {
-          if (src.platform === 'youtube') {
-            const handleMatch = src.url.match(/@([A-Za-z0-9_.-]+)/)
-                              || src.url.match(/youtube\/user\/([A-Za-z0-9_.-]+)/i);
-            const handle = handleMatch ? handleMatch[1] : 'visionrtltd';
-            return { kind: 'items', items: await fetchYouTubeAsFeedItems(handle) };
-          }
-          const xml = await fetchViaProxy(src.url);
-          return { kind: 'xml', xml };
-        }));
-
-        const results = [];
-        const allItems = [];
-        settled.forEach((r, i) => {
-          const src = active[i];
-          if (r.status === 'fulfilled') {
-            try {
-              const parsed = r.value.kind === 'items' ? r.value.items : parseFeed(r.value.xml);
-              const items = parsed.map((it) => ({
-                ...it,
-                platform: src.platform,
-                sourceLabel: src.label,
-              }));
-              results.push({ label: src.label, url: src.url, count: items.length, error: null });
-              allItems.push(...items);
-            } catch (e) {
-              results.push({ label: src.label, url: src.url, count: 0, error: e.message });
-            }
-          } else {
-            results.push({ label: src.label, url: src.url, count: 0,
-              error: r.reason?.message || String(r.reason) });
-          }
-        });
-
-        allItems.sort((a, b) => {
-          const at = a.pubDate ? Date.parse(a.pubDate) : 0;
-          const bt = b.pubDate ? Date.parse(b.pubDate) : 0;
-          return (bt || 0) - (at || 0);
-        });
-
-        renderSourceStatus(results);
-        renderUnifiedFeed(allItems);
+        renderSourceSkeletons();
+        await Promise.allSettled(active.map(refreshOneSource));
         refreshBtn.disabled = false;
-        refreshBtn.textContent = 'Refresh';
+        refreshBtn.textContent = 'Refresh all';
       }
 
       function renderSourceConfig() {
